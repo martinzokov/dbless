@@ -94,4 +94,13 @@ describe("Vercel document API", () => {
     expect(response.status).toBe(201);
     expect((await call("GET", "/v1/collections/notes/documents/one")).status).toBe(200);
   });
+
+  it("uses a valid default page size when including document data", async () => {
+    const { call } = setup();
+    await call("POST", "/v1/collections/notes/documents?id=one", tokenA, { title: "included" });
+    const response = await call("GET", "/v1/collections/notes/documents?include=data");
+    expect(response.status).toBe(200);
+    const page = await response.json() as { documents: Array<{ data: { title: string } }> };
+    expect(page.documents[0]?.data.title).toBe("included");
+  });
 });

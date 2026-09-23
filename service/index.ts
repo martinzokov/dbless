@@ -201,9 +201,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
   if (!id && request.method === "GET") {
     if (!env.CURSOR_SECRET || encoder.encode(env.CURSOR_SECRET).byteLength < 32) return error(500, "configuration", "Cursor secret is missing or too short");
-    const limit = Number(url.searchParams.get("limit") ?? 50);
-    const prefix = url.searchParams.get("prefix") ?? "";
     const includeData = url.searchParams.get("include") === "data";
+    const limit = Number(url.searchParams.get("limit") ?? (includeData ? 20 : 50));
+    const prefix = url.searchParams.get("prefix") ?? "";
     if (!Number.isInteger(limit) || limit < 1 || limit > (includeData ? 20 : 100) || (prefix && !ID.test(prefix))) return error(400, "invalid_query", "Invalid limit or prefix");
     if (url.searchParams.has("include") && !includeData) return error(400, "invalid_query", "Unsupported include value");
     const base = `data/v1/${key.app}/${key.environment}/${collection}/`;

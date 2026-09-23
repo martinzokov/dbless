@@ -104,3 +104,18 @@ Reads and writes are strongly consistent for an individual R2 object. Lists span
 The API validates JSON object input and applies size limits. It does not validate application schemas. It logs internal failures without logging request bodies or API keys. Configure request rate limiting in the central Vercel project's Firewall if the public endpoint needs an abuse guard.
 
 Run `npm run typecheck`, `npm test`, and `npm run build:sdk` before deployment.
+
+## Local R2 smoke test
+
+To test the real bucket without deploying to Vercel, create a bucket-scoped R2 token with Object Read & Write permission. Put its access key ID and secret in an ignored `.env` file with the R2 account ID, bucket name, and a random `CURSOR_SECRET` of at least 32 bytes. Set `DBLESS_URL=http://127.0.0.1:8787`.
+
+```sh
+npm run admin:local -- app create dbless-test
+npm run admin:local -- key create dbless-test local write
+# Put the generated dbj_live_... key in DBLESS_API_KEY in .env.
+npm run dev:local
+# In another terminal:
+npm run smoke:local
+```
+
+The local server listens only on `127.0.0.1`. The smoke test creates one document, reads it, patches it, lists it, then logically deletes it. The tombstone remains in the test bucket. `.env` is ignored by Git.

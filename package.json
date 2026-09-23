@@ -7,7 +7,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "admin": "tsx cli/index.ts",
-    "build:sdk": "tsc -p sdk/tsconfig.json"
+    "admin:local": "node --env-file=.env --import tsx cli/index.ts",
+    "build:sdk": "tsc -p sdk/tsconfig.json",
+    "dev:local": "node --env-file=.env --import tsx local/server.ts",
+    "smoke:local": "node --env-file=.env --import tsx local/smoke.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0"

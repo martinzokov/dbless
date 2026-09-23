@@ -9,5 +9,5 @@
     "types": ["node", "vitest/globals"],
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["api/**/*.ts", "service/**/*.ts", "sdk/**/*.ts", "cli/**/*.ts", "tests/**/*.ts"]
+  "include": ["api/**/*.ts", "service/**/*.ts", "sdk/**/*.ts", "cli/**/*.ts", "local/**/*.ts", "tests/**/*.ts"]
 }
