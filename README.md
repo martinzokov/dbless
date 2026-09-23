@@ -1,6 +1,6 @@
 # dbless
 
-`dbless` is a small TypeScript package for storing JSON documents directly in a private Cloudflare R2 bucket. Install it in each Node.js app you host on Vercel. There is no shared dbless server to deploy.
+`dbless` is a small TypeScript package for storing JSON documents directly in a private Cloudflare R2 bucket. Install it in each Node.js app you host on Vercel.
 
 The same bucket can hold data for many apps. Each app chooses an `app` name and `environment`, which become part of every object key:
 
@@ -77,7 +77,7 @@ The default document limit is 256 KiB including metadata; change it with `maxDoc
 
 Use a different `app` name for each app and separate environments such as `production`, `preview`, and `development`. Those prefixes keep files organized and prevent accidental collisions. Cloudflare R2 tokens can be scoped to the bucket, but not to an object prefix, so any app holding a read/write credential for this bucket can also access other apps' files. Use a separate bucket when you need enforced access isolation.
 
-No database, index file, HTTP API, or central dbless deployment is involved. This works best when you mostly address documents by ID. It does not provide field queries or multi-document transactions.
+This works best when you mostly address documents by ID. It does not provide field queries or multi-document transactions.
 
 ## Test the package
 
