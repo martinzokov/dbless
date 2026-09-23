@@ -10,6 +10,7 @@ A small JSON document service for Vercel apps, backed by one private Cloudflare 
 - Supports read-only or read/write keys, optional collection restrictions, and key revocation.
 - Limits each key to 300 requests per minute per Cloudflare location.
 - Exports an app environment as newline-delimited JSON for backup.
+- Imports an export into an empty app environment without overwriting objects.
 
 This is suited to settings, small content collections, and apps that primarily address documents by ID. It has no field queries, multi-document transactions, or consistent snapshot exports.
 
@@ -24,7 +25,7 @@ Prerequisites: Node.js 20+, a Cloudflare account, an R2 bucket, and an R2 API to
 5. Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET` in your local shell. `.env.example` lists them. Do not commit credentials.
 6. Run `npm run admin -- app create myapp`, then `npm run admin -- key create myapp production write`. Copy the API key printed once into a server-only Vercel environment variable.
 
-For local Worker development, `npm run dev` uses local R2 storage. Set `CURSOR_SECRET` in `.dev.vars` (ignored by Git; add it to `.gitignore` if creating it) before using list endpoints. CLI provisioning uses the configured remote R2 bucket, so local Worker development requires local key records or a remote Worker.
+For local Worker development, `npm run dev` uses local R2 storage. Set `CURSOR_SECRET` in `.dev.vars` (ignored by Git) before using list endpoints. CLI provisioning uses the configured remote R2 bucket, so local Worker development requires local key records or a remote Worker.
 
 The rate limit binding uses namespace ID `1001`. If your account already uses that ID for another rate limiter, change it in `wrangler.jsonc` before deploying. Cloudflare's rate limits are local to each location and are approximate, so they are an abuse guard rather than an exact billing quota. [Cloudflare rate limiting documentation](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
 
@@ -79,9 +80,11 @@ npm run admin -- key create another-app development read
 npm run admin -- key create another-app production write notes,settings
 npm run admin -- key revoke <key-id>
 npm run admin -- app export another-app production > backup.ndjson
+# Restore into an empty another-app/production namespace:
+npm run admin -- app import another-app production backup.ndjson
 ```
 
-Export includes tombstones. It reads live objects, so concurrent writes can make the export inconsistent. Pause writes when you need a consistent backup. Store backups somewhere separate from the primary R2 bucket. Key records are never included in app exports.
+Export includes tombstones. It reads live objects, so concurrent writes can make the export inconsistent. Pause writes when you need a consistent backup. Store backups somewhere separate from the primary R2 bucket. Key records are never included in app exports. Import validates that each object belongs to the named app and environment, then uses conditional creation; it stops on the first existing object. To restore into another environment, change the app/environment key prefix in the NDJSON file first. Import can partially succeed before an error, so use an empty environment and inspect it if the command fails. Schedule `app export` from your own backup runner if you need automatic backups.
 
 Rotate a key by issuing a second key, updating the Vercel environment variable, deploying the app, and revoking the old key. A revoked key stops working on the next request.
 

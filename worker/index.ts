@@ -200,7 +200,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
     const listed = await env.BUCKET.list({ prefix: `${base}${prefix}`, limit, cursor, include: ["customMetadata"] });
     const documents = await Promise.all(listed.objects.filter(object => object.customMetadata?.deleted !== "true").map(async object => {
-      const summary = { id: object.customMetadata?.id ?? object.key.slice(base.length, -5), createdAt: object.customMetadata?.createdAt, updatedAt: object.customMetadata?.updatedAt, etag: etag(object) };
+      const summary = { id: object.customMetadata?.id ?? object.key.slice(base.length, -5), createdAt: object.customMetadata?.createdAt ?? object.customMetadata?.createdat, updatedAt: object.customMetadata?.updatedAt ?? object.customMetadata?.updatedat, etag: etag(object) };
       if (!includeData) return summary;
       const full = await env.BUCKET.get(object.key);
       return full ? { ...summary, data: (await full.json<Document>()).data } : null;

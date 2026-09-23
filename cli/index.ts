@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -61,6 +63,32 @@ async function main(): Promise<void> {
     } while (cursor);
     return;
   }
+  if (entity === "app" && action === "import") {
+    const app = name(args[0], "app");
+    const environment = name(args[1], "environment");
+    const file = args[2];
+    if (!file) throw new Error("Import requires an NDJSON file path");
+    const prefix = `data/v1/${app}/${environment}/`;
+    let count = 0;
+    const lines = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
+    for await (const line of lines) {
+      if (!line.trim()) continue;
+      const entry = JSON.parse(line) as { key?: unknown; document?: Record<string, unknown> };
+      const key = entry.key;
+      const doc = entry.document;
+      if (typeof key !== "string" || !key.startsWith(prefix) || !doc) throw new Error(`Invalid import entry at line ${count + 1}`);
+      const suffix = key.slice(prefix.length);
+      const match = /^([a-z0-9][a-z0-9_-]{0,63})\/([A-Za-z0-9][A-Za-z0-9_-]{0,127})\.json$/.exec(suffix);
+      if (!match || doc.id !== match[2] || typeof doc.revision !== "string" || typeof doc.createdAt !== "string" || typeof doc.updatedAt !== "string" || typeof doc.deleted !== "boolean" || !doc.data || typeof doc.data !== "object" || Array.isArray(doc.data)) throw new Error(`Invalid document at line ${count + 1}`);
+      await client.send(new PutObjectCommand({
+        Bucket: bucket, Key: key, Body: JSON.stringify(doc), ContentType: "application/json", IfNoneMatch: "*",
+        Metadata: { id: doc.id, createdat: doc.createdAt, updatedat: doc.updatedAt, deleted: String(doc.deleted) },
+      }));
+      count++;
+    }
+    console.log(`Imported ${count} documents into ${app}/${environment}`);
+    return;
+  }
   if (entity === "key" && action === "create") {
     const app = name(args[0], "app");
     const environment = name(args[1], "environment");
@@ -87,7 +115,7 @@ async function main(): Promise<void> {
     console.log(`Revoked key ${id}`);
     return;
   }
-  throw new Error("Usage: admin app create <app> | app export <app> <environment> | key create <app> <environment> <read|write> [collection1,collection2] | key revoke <key-id>");
+  throw new Error("Usage: admin app create <app> | app export <app> <environment> | app import <app> <environment> <file.ndjson> | key create <app> <environment> <read|write> [collection1,collection2] | key revoke <key-id>");
 }
 
 main().catch(cause => { console.error(cause instanceof Error ? cause.message : cause); process.exitCode = 1; });
