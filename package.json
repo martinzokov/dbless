@@ -1,16 +1,23 @@
 {
   "name": "dbless",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist/index.js", "dist/index.d.ts", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "admin": "tsx cli/index.ts",
-    "admin:local": "node --env-file=.env --import tsx cli/index.ts",
-    "build:sdk": "tsc -p sdk/tsconfig.json",
-    "dev:local": "node --env-file=.env --import tsx examples/local/server.ts",
-    "smoke:local": "node --env-file=.env --import tsx examples/local/smoke.ts"
+    "smoke:r2": "node --env-file=.env --import tsx examples/direct-r2/smoke.ts",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0"
