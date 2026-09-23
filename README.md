@@ -1,5 +1,7 @@
 # dbless
 
+![Three apps sending JSON documents into one shared bucket](assets/dbless-hero.png)
+
 `dbless` is a small TypeScript package for storing JSON documents directly in a private Cloudflare R2 bucket. Install it in each Node.js app you host on Vercel.
 
 The same bucket can hold data for many apps. Each app chooses an `app` name and `environment`, which become part of every object key:
