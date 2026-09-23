@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import worker from "../worker/index";
+import service from "../service/index";
 
 const tokenA = `dbj_live_${"a".repeat(24)}_${"x".repeat(43)}`;
 const tokenB = `dbj_live_${"b".repeat(24)}_${"y".repeat(43)}`;
@@ -44,8 +44,8 @@ function setup() {
       etag: id, metadata: {},
     });
   }
-  const env = { BUCKET: storage, RATE_LIMITER: { limit: async () => ({ success: true }) }, CURSOR_SECRET: "a long secret with at least thirty-two bytes" };
-  const call = (method: string, path: string, token = tokenA, data?: object, etag?: string) => worker.fetch(new Request(`https://example.test${path}`, {
+  const env = { BUCKET: storage, CURSOR_SECRET: "a long secret with at least thirty-two bytes" };
+  const call = (method: string, path: string, token = tokenA, data?: object, etag?: string) => service.fetch(new Request(`https://example.test${path}`, {
     method,
     headers: { authorization: `Bearer ${token}`, ...(data ? { "content-type": "application/json" } : {}), ...(etag ? { "if-match": etag } : {}) },
     body: data ? JSON.stringify(data) : undefined,
@@ -53,7 +53,7 @@ function setup() {
   return { call, storage };
 }
 
-describe("document API", () => {
+describe("Vercel document API", () => {
   it("isolates apps and requires valid credentials", async () => {
     const { call } = setup();
     const path = "/v1/collections/notes/documents";
@@ -86,5 +86,12 @@ describe("document API", () => {
     expect(page.documents).toHaveLength(1);
     expect((await call("GET", `/v1/collections/notes/documents?limit=1&cursor=${page.cursor}`)).status).toBe(200);
     expect((await call("GET", `/v1/collections/other/documents?limit=1&cursor=${page.cursor}`)).status).toBe(400);
+  });
+
+  it("accepts the route passed by Vercel's rewrite", async () => {
+    const { call } = setup();
+    const response = await call("POST", "/api/handler?_dbless_route=v1/collections/notes/documents&id=one", tokenA, { title: "routed" });
+    expect(response.status).toBe(201);
+    expect((await call("GET", "/v1/collections/notes/documents/one")).status).toBe(200);
   });
 });

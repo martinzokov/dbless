@@ -1,6 +1,18 @@
+export interface StoredObject {
+  key: string;
+  etag: string;
+  httpEtag: string;
+  json<T>(): Promise<T>;
+}
+
+export interface Bucket {
+  get(key: string): Promise<StoredObject | null>;
+  put(key: string, value: string, options: { onlyIf: Headers; customMetadata: Record<string, string>; httpMetadata: { contentType: string } }): Promise<StoredObject | null>;
+  list(options: { prefix: string; limit: number; cursor?: string }): Promise<{ objects: StoredObject[]; truncated: boolean; cursor?: string }>;
+}
+
 interface Env {
-  BUCKET: R2Bucket;
-  RATE_LIMITER: RateLimit;
+  BUCKET: Bucket;
   CURSOR_SECRET: string;
   MAX_DOCUMENT_BYTES?: string;
 }
@@ -71,7 +83,7 @@ function objectKey(key: KeyRecord, collection: string, id: string): string {
   return `data/v1/${key.app}/${key.environment}/${collection}/${id}.json`;
 }
 
-function etag(object: R2Object): string { return object.httpEtag; }
+function etag(object: StoredObject): string { return object.httpEtag; }
 
 async function bodyData(request: Request, maxBytes: number): Promise<Record<string, unknown> | Response> {
   const declared = Number(request.headers.get("content-length"));
@@ -107,7 +119,7 @@ function metadata(doc: Document): Record<string, string> {
   return { id: doc.id, createdAt: doc.createdAt, updatedAt: doc.updatedAt, deleted: String(doc.deleted) };
 }
 
-async function store(env: Env, key: string, doc: Document, onlyIf: Headers): Promise<R2Object | null> {
+async function store(env: Env, key: string, doc: Document, onlyIf: Headers): Promise<StoredObject | null> {
   return env.BUCKET.put(key, JSON.stringify(doc), {
     onlyIf,
     httpMetadata: { contentType: "application/json" },
@@ -157,10 +169,14 @@ function merge(target: Record<string, unknown>, patch: Record<string, unknown>):
 
 async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const route = url.searchParams.get("_dbless_route");
+  if (route) {
+    url.pathname = `/${route}`;
+    url.searchParams.delete("_dbless_route");
+  }
   if (url.pathname === "/health" && request.method === "GET") return json({ ok: true });
   const key = await authenticate(request, env);
   if (!key) return error(401, "unauthorized", "Invalid API key");
-  if (!(await env.RATE_LIMITER.limit({ key: key.id })).success) return error(429, "rate_limited", "Too many requests");
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts.length < 4 || parts.length > 5 || parts[0] !== "v1" || parts[1] !== "collections" || parts[3] !== "documents") return error(404, "not_found", "Unknown endpoint");
   const collection = parts[2];
@@ -198,12 +214,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (!state || state.scope !== `${base}|${prefix}|${includeData}` || typeof state.cursor !== "string") return error(400, "invalid_cursor", "Invalid cursor");
       cursor = state.cursor;
     }
-    const listed = await env.BUCKET.list({ prefix: `${base}${prefix}`, limit, cursor, include: ["customMetadata"] });
-    const documents = await Promise.all(listed.objects.filter(object => object.customMetadata?.deleted !== "true").map(async object => {
-      const summary = { id: object.customMetadata?.id ?? object.key.slice(base.length, -5), createdAt: object.customMetadata?.createdAt ?? object.customMetadata?.createdat, updatedAt: object.customMetadata?.updatedAt ?? object.customMetadata?.updatedat, etag: etag(object) };
-      if (!includeData) return summary;
-      const full = await env.BUCKET.get(object.key);
-      return full ? { ...summary, data: (await full.json<Document>()).data } : null;
+    const listed = await env.BUCKET.list({ prefix: `${base}${prefix}`, limit, cursor });
+    const documents = await Promise.all(listed.objects.map(async item => {
+      const object = await env.BUCKET.get(item.key);
+      if (!object) return null;
+      const doc = await object.json<Document>();
+      if (doc.deleted) return null;
+      const summary = { id: doc.id, createdAt: doc.createdAt, updatedAt: doc.updatedAt, etag: etag(object) };
+      return includeData ? { ...summary, data: doc.data } : summary;
     }));
     const nextCursor = listed.truncated && listed.cursor ? await signCursor({ scope: `${base}|${prefix}|${includeData}`, cursor: listed.cursor }, env.CURSOR_SECRET) : null;
     return json({ documents: documents.filter(Boolean), cursor: nextCursor });
