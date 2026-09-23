@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import handler from "../api/handler";
+import handler from "../../api/handler";
 
 const port = Number(process.env.DBLESS_PORT ?? 8787);
 

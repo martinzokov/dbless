@@ -105,7 +105,11 @@ The API validates JSON object input and applies size limits. It does not validat
 
 Run `npm run typecheck`, `npm test`, and `npm run build:sdk` before deployment.
 
-## Local R2 smoke test
+## Examples
+
+The [local R2 example](examples/local/README.md) starts dbless on `127.0.0.1` and tests it against a real bucket. It does not use Vercel.
+
+### Local R2 smoke test
 
 To test the real bucket without deploying to Vercel, create a bucket-scoped R2 token with Object Read & Write permission. Put its access key ID and secret in an ignored `.env` file with the R2 account ID, bucket name, and a random `CURSOR_SECRET` of at least 32 bytes. Set `DBLESS_URL=http://127.0.0.1:8787`.
 

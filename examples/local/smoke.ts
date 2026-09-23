@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createStore, StoreError } from "../sdk/index";
+import { createStore, StoreError } from "../../sdk/index";
 
 const url = process.env.DBLESS_URL ?? "http://127.0.0.1:8787";
 const apiKey = process.env.DBLESS_API_KEY;
